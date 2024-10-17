@@ -1,14 +1,21 @@
 #pragma once
-
+#include <EasyPinD.h>
 #include <CANLibrary.h>
 #include "BMS_low_level_abstraction.h"
 
-void HAL_CAN_Send(can_object_id_t id, uint8_t *data, uint8_t length);
+
 
 extern CAN_HandleTypeDef hcan;
 
 namespace CANLib
 {
+	void HAL_CAN_Send(can_object_id_t id, uint8_t *data, uint8_t length);
+
+	EasyPinD can_rs(GPIOA, {GPIO_PIN_15, GPIO_MODE_OUTPUT_OD, GPIO_NOPULL, GPIO_SPEED_FREQ_LOW}, GPIO_PIN_SET);
+
+
+
+
 	//*********************************************************************
 	// CAN Library settings
 	//*********************************************************************
@@ -180,8 +187,76 @@ namespace CANLib
 	CANObject<int8_t, 1> obj_battery_state(0x0058);
 
 
+	void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
+	{
+		CAN_RxHeaderTypeDef RxHeader = {0};
+		uint8_t RxData[8] = {0};
+		
+		if( HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, RxData) == HAL_OK )
+		{
+			CANLib::can_manager.IncomingCANFrame(RxHeader.StdId, RxData, RxHeader.DLC);
+		}
+		
+		return;
+	}
+
+	void HAL_CAN_ErrorCallback(CAN_HandleTypeDef *hcan)
+	{
+		Leds::obj.SetOn(Leds::LED_RED, 100);
+		
+		DEBUG_LOG_TOPIC("CAN", "RX error event, code: 0x%08lX\n", HAL_CAN_GetError(hcan));
+		
+		return;
+	}
+
+	void HAL_CAN_Send(can_object_id_t id, uint8_t *data, uint8_t length)
+	{
+		CAN_TxHeaderTypeDef TxHeader = {0};
+		uint8_t TxData[8] = {0};
+		uint32_t TxMailbox = 0;
+		
+		TxHeader.StdId = id;
+		TxHeader.ExtId = 0;
+		TxHeader.RTR  = CAN_RTR_DATA;
+		TxHeader.IDE = CAN_ID_STD;
+		TxHeader.DLC = length;
+		TxHeader.TransmitGlobalTime = DISABLE;
+		memcpy(TxData, data, length);
+		
+		while( HAL_CAN_GetTxMailboxesFreeLevel(&hcan) == 0 )
+		{
+			Leds::obj.SetOn(Leds::LED_RED);
+		}
+		Leds::obj.SetOff(Leds::LED_RED);
+		
+		if( HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, &TxMailbox) != HAL_OK )
+		{
+			Leds::obj.SetOn(Leds::LED_RED, 100);
+
+			DEBUG_LOG_TOPIC("CAN", "TX error event, code: 0x%08lX\n", HAL_CAN_GetError(&hcan));
+		}
+		
+		return;
+	}
+
+
+
+
+
+
+
+	void HardwareSetup()
+	{
+		can_rs.Init();
+		
+		HAL_CAN_ActivateNotification(&hcan, CAN_IT_RX_FIFO0_MSG_PENDING | CAN_IT_ERROR | CAN_IT_BUSOFF | CAN_IT_LAST_ERROR_CODE);
+		HAL_CAN_Start(&hcan);
+	}
+	
 	inline void Setup()
 	{
+		HardwareSetup();
+		
 		// system blocks
 		set_block_info_params(obj_block_info);
 		set_block_health_params(obj_block_health);

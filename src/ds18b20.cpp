@@ -23,9 +23,9 @@ void DelayMicr(uint32_t cn)
 void port_init(void)
 {
   HAL_GPIO_DeInit(GPIOB, GPIO_DS_PIN);
-  GPIOB->CRH |= GPIO_CRH_MODE15;
-  GPIOB->CRH |= GPIO_CRH_CNF15_0;
-  GPIOB->CRH &= ~GPIO_CRH_CNF15_1;
+  GPIOB->CRH |= GPIO_CRH_MODE9;
+  GPIOB->CRH |= GPIO_CRH_CNF9_0;
+  GPIOB->CRH &= ~GPIO_CRH_CNF9_1;
 }
 
 //*********************************************************************************************
