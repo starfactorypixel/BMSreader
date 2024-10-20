@@ -118,9 +118,9 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 	// USART2 == BMS1
 	else if(huart->Instance == USART2)
 	{
-		obj = &BMSLogic::data[BMSLogic::BMS_1];
+		obj = &BMSLogic::uart_data[BMSLogic::BMS_1];
 		
-		BMSLogic::RxPacket(BMSLogic::BMS_1, Size);
+		BMSLogic::UART_RX(BMSLogic::BMS_1, Size);
 		
 		HAL_UARTEx_ReceiveToIdle_IT(obj->hal, obj->hot, sizeof(obj->hot));
 	}
@@ -128,9 +128,9 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 	// USART3 == BMS2
 	else if(huart->Instance == USART3)
 	{
-		obj = &BMSLogic::data[BMSLogic::BMS_2];
+		obj = &BMSLogic::uart_data[BMSLogic::BMS_2];
 		
-		BMSLogic::RxPacket(BMSLogic::BMS_2, Size);
+		BMSLogic::UART_RX(BMSLogic::BMS_2, Size);
 		
 		HAL_UARTEx_ReceiveToIdle_IT(obj->hal, obj->hot, sizeof(obj->hot));
 	}
@@ -151,7 +151,7 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
 	// USART2 == BMS1
 	else if(huart->Instance == USART2)
 	{
-		obj = &BMSLogic::data[BMSLogic::BMS_1];
+		obj = &BMSLogic::uart_data[BMSLogic::BMS_1];
 		
 		DEBUG_LOG_TOPIC("USART2", "ERR: %d\n", huart->ErrorCode);
 		
@@ -162,12 +162,12 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
 	// USART3 == BMS2
 	else if(huart->Instance == USART3)
 	{
-		obj = &BMSLogic::data[BMSLogic::BMS_2];
+		obj = &BMSLogic::uart_data[BMSLogic::BMS_2];
 		
 		DEBUG_LOG_TOPIC("USART3", "ERR: %d\n", huart->ErrorCode);
 		
 		HAL_UART_AbortReceive_IT(obj->hal);
-		//HAL_UARTEx_ReceiveToIdle_IT(obj->hal, obj->hot, sizeof(obj->hot));
+		HAL_UARTEx_ReceiveToIdle_IT(obj->hal, obj->hot, sizeof(obj->hot));
 	}
 }
 
