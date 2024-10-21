@@ -134,6 +134,7 @@ namespace BMSANT
 		uint16_t logs;					// WAT?
 		uint16_t crc;					// Контрольная сумма.
 	};
+	static_assert(sizeof(packet_raw_t) == PacketSize, "PacketSize const differs with actual size of structure.");
 	
 	struct __attribute__((packed)) packet_raw_reverse_t
 	{
@@ -168,4 +169,5 @@ namespace BMSANT
 		uint16_t total_voltage;				// Напряжение на всей АКБ, 0.1 V
 		uint32_t header;					// Заголовок пакета.
 	};
+	static_assert(sizeof(packet_raw_reverse_t) == PacketSize, "PacketSize const differs with actual size of structure.");
 }
