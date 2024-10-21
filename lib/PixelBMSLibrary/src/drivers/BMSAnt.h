@@ -5,11 +5,20 @@
 
 class BMSAnt : public BMSDeviceInterface
 {
+	using callback_ready_t = void (*)(const BMSANT::packet_raw_reverse_t *data);
+	
 	public:
 		
-		BMSAnt() : BMSDeviceInterface(), _busy(false), _ready(false), _last_request_time(0)
+		BMSAnt() : BMSDeviceInterface(), _callback_ready(nullptr), _busy(false), _ready(false), _last_request_time(0)
 		{
 			memset(_data, 0x00, sizeof(_data));
+			
+			return;
+		}
+		
+		void SetReadyCallback(callback_ready_t ready)
+		{
+			_callback_ready = ready;
 			
 			return;
 		}
@@ -34,6 +43,11 @@ class BMSAnt : public BMSDeviceInterface
 				_manager->data[_idx].voltage = data->total_voltage;
 				_manager->data[_idx].current = data->total_current;
 				_manager->data[_idx].power = data->total_power;
+				
+				if(_callback_ready != nullptr)
+				{
+					_callback_ready(data);
+				}
 				
 				_busy = false;
 			}
@@ -84,6 +98,8 @@ class BMSAnt : public BMSDeviceInterface
 
 			return;
 		}
+		
+		callback_ready_t _callback_ready;
 		
 		bool _busy;								// Флаг того, что разбор данных не окончен и новые копировать нельзя
 		bool _ready;							// Флаг того, что массив данные приняты и готовы к анализу
