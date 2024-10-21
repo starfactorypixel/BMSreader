@@ -65,7 +65,7 @@ namespace BMSANT
 		BALANCER_MOS_TEMP_HIGH = 10U
 	};
 	
-	struct packet_raw_t
+	struct __attribute__((packed)) packet_raw_t
 	{
 		uint32_t header;				// Заголовок пакета.
 		uint16_t total_voltage;			// Напряжение на всей АКБ, 0.1 V
@@ -135,7 +135,7 @@ namespace BMSANT
 		uint16_t crc;					// Контрольная сумма.
 	};
 	
-	struct packet_raw_reverse_t
+	struct __attribute__((packed)) packet_raw_reverse_t
 	{
 		uint16_t crc;						// Контрольная сумма.
 		uint16_t logs;						// WAT?
