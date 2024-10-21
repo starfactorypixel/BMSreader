@@ -57,8 +57,12 @@ namespace BMSLogic
 		uart_data[BMS_1].hal = &hBms1Uart;
 		uart_data[BMS_2].hal = &hBms2Uart;
 		
+		Ant1.SetReadyCallback( CANLib::UpdateCANObjects_BMS );
+		//Ant2.SetReadyCallback();
+
 		Bms.SetModel(BMS_1, Ant1);
 		Bms.SetModel(BMS_2, Ant2);
+
 		
 		HAL_UARTEx_ReceiveToIdle_IT(uart_data[BMS_1].hal, uart_data[BMS_1].hot, sizeof(uart_data[BMS_1].hot));
 		HAL_UARTEx_ReceiveToIdle_IT(uart_data[BMS_2].hal, uart_data[BMS_2].hot, sizeof(uart_data[BMS_2].hot));
