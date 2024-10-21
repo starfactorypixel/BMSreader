@@ -2,6 +2,7 @@
 #include <EasyPinD.h>
 #include <CANLibrary.h>
 #include "BMS_low_level_abstraction.h"
+#include <drivers/BMSAnt_Data.h>
 
 
 
@@ -317,51 +318,23 @@ namespace CANLib
 		obj_max_temperature.SetValue(0, max_temp, timer_type, event_type);
 	}
 
-	void UpdateCANObjects_BMS(uint8_t bms_raw_packet_data[BMS_BOARD_PACKET_SIZE])
+	void UpdateCANObjects_BMS(const BMSANT::packet_raw_reverse_t *data)
 	{
-
-		uint32_t *BMS_header = (uint32_t *)bms_raw_packet_data;
-		if (*BMS_header != 0xFFAA55AA)
-		{
-			DEBUG_LOG_TOPIC("BMS", "Header error! Expected: 0x%08X, presented: 0x%08X\n", 0xFFAA55AA, *BMS_header);
-			
-			return;
-		}
-		
-		uint16_t crc = 0x0000;
-		for(uint8_t i = 4; i < 138; ++i)
-		{
-			crc += bms_raw_packet_data[i];
-		}
-		if( ((crc >> 8) & 0xFF) != bms_raw_packet_data[138] || (crc & 0xFF) != bms_raw_packet_data[139])
-		{
-			//DEBUG_LOG("ERROR: BMS CRC error! Expected: 0x%04X, presented: 0x%04X", bms_raw_data_crc(bms_raw_packet_data), get_bms_raw_data_crc(bms_raw_packet_data));
-			DEBUG_LOG_TOPIC("BMS", "CRC error!");
-			
-			return;
-		}
-		
-
-		// reverse_array(bms_raw_packet_data, BMS_BOARD_PACKET_SIZE);
-		// packet_structure_reversed_t *reversed_bms_packet = (packet_structure_reversed_t *)bms_raw_packet_data;
-
-		packet_structure_t *bms_packet_struct = (packet_structure_t *)bms_raw_packet_data;
+		//packet_structure_t *bms_packet_struct = (packet_structure_t *)bms_raw_packet_data;
 
 		// 0x0044	HighVoltage
 		// request | timer:1000
 		// uint16_t	100мВ	1 + 2	{ type[0] data[1..2] }
 		// all: NORMAL
 		// Общее напряжение АКБ
-		swap_endian(bms_packet_struct->voltage);
-		obj_high_voltage.SetValue(0, bms_packet_struct->voltage, CAN_TIMER_TYPE_NORMAL); // BMS reports voltage in 10 mV/bit, we need 100 mV/bit
+		obj_high_voltage.SetValue(0, data->total_voltage  , CAN_TIMER_TYPE_NORMAL); // BMS reports voltage in 10 mV/bit, we need 100 mV/bit
 
 		// 0x0045	HighCurrent
 		// request | timer:1000
 		// int16_t	100мА	1 + 2	{ type[0] data[1..2] }
 		// Ограничения: all: NORMAL
 		// Общий ток разряда / заряда АКБ
-		swap_endian(bms_packet_struct->current);
-		obj_high_current.SetValue(0, bms_packet_struct->current, CAN_TIMER_TYPE_NORMAL); // 100mA/bit
+		obj_high_current.SetValue(0, data->total_current, CAN_TIMER_TYPE_NORMAL); // 100mA/bit
 
 		// 0x0046	MaxTemperature
 		// we will set it at the end of the update
@@ -372,39 +345,34 @@ namespace CANLib
 		// uint16_t	мВ	1 + 6	{ type[0] v1[1..2] v2[3..4] v3[5..6] }
 		// Ограничения: Согластно тех.паспорту банок АКБ
 		// Напряжение на банках: Минимальное, Максимальное, Дельта.
-		swap_endian(bms_packet_struct->vmin_voltage);
-		swap_endian(bms_packet_struct->vmax_voltage);
 		
 		timer_type_t timer_type = CAN_TIMER_TYPE_NORMAL;
 		event_type_t event_type = CAN_EVENT_TYPE_NONE;
 		
-		if(bms_packet_struct->vmin_voltage >= 2700 && bms_packet_struct->vmin_voltage <= 3000)
+		if(data->cell_vmin_volt >= 2700 && data->cell_vmin_volt <= 3000)
 		{
 			timer_type = CAN_TIMER_TYPE_WARNING;
 		}
-		else if(bms_packet_struct->vmin_voltage < 2700 || bms_packet_struct->vmax_voltage > 4200)
+		else if(data->cell_vmin_volt < 2700 || data->cell_vmax_volt > 4200)
 		{
 			timer_type = CAN_TIMER_TYPE_CRITICAL;
 		}
 		
-		obj_low_voltage_min_max_delta.SetValue(0, bms_packet_struct->vmin_voltage, timer_type, event_type);
-		obj_low_voltage_min_max_delta.SetValue(1, bms_packet_struct->vmax_voltage, timer_type, event_type);
-		obj_low_voltage_min_max_delta.SetValue(2, (bms_packet_struct->vmax_voltage - bms_packet_struct->vmin_voltage), CAN_TIMER_TYPE_NONE, CAN_EVENT_TYPE_NONE);
+		obj_low_voltage_min_max_delta.SetValue(0, data->cell_vmin_volt, timer_type, event_type);
+		obj_low_voltage_min_max_delta.SetValue(1, data->cell_vmax_volt, timer_type, event_type);
+		obj_low_voltage_min_max_delta.SetValue(2, (data->cell_vmax_volt - data->cell_vmin_volt), CAN_TIMER_TYPE_NONE, CAN_EVENT_TYPE_NONE);
 
 		// 0x0048	Temperature1
 		// request
 		// int8_t	°C	1 + 7	{ type[0] t1[1] t2[2] t3[3] t4[4] t5[5] t6[6] t7[7] }
 		// Температура: MOS, Balancer, Temp1, Temp2, Temp3, Temp4, Temp5.
-		swap_endian(bms_packet_struct->temperature_mosfet);
-		obj_temperature_1.SetValue(0, bms_packet_struct->temperature_mosfet);
+		obj_temperature_1.SetValue(0, data->temperature[5]);
 
-		swap_endian(bms_packet_struct->temperature_balancer);
-		obj_temperature_1.SetValue(1, bms_packet_struct->temperature_balancer);
+		obj_temperature_1.SetValue(1, data->temperature[4]);
 
-		for (uint8_t i = 0; i < 4; i++)
+		for(uint8_t i = 0; i < 4; i++)
 		{
-			swap_endian(bms_packet_struct->temperature_sensors[i]);
-			obj_temperature_1.SetValue(i + 2, bms_packet_struct->temperature_sensors[i]);
+			obj_temperature_1.SetValue(i + 2, data->temperature[3-i]);
 		}
 
 		uint8_t cells_voltage_index = 0;
@@ -417,8 +385,7 @@ namespace CANLib
 			if (cells_voltage_index >= BMS_BATTERY_NUMBER_OF_CELLS)
 				break;
 
-			swap_endian(bms_packet_struct->cells_voltage[cells_voltage_index]);
-			obj_low_voltage_1_3.SetValue(i, bms_packet_struct->cells_voltage[cells_voltage_index++]);
+			obj_low_voltage_1_3.SetValue(i, data->cell_voltage[ BMS_BATTERY_NUMBER_OF_CELLS-1 - cells_voltage_index++ ]);
 		}
 
 		// 0x004C	LowVoltage4-6
@@ -430,8 +397,7 @@ namespace CANLib
 			if (cells_voltage_index >= BMS_BATTERY_NUMBER_OF_CELLS)
 				break;
 
-			swap_endian(bms_packet_struct->cells_voltage[cells_voltage_index]);
-			obj_low_voltage_4_6.SetValue(i, bms_packet_struct->cells_voltage[cells_voltage_index++]);
+			obj_low_voltage_4_6.SetValue(i, data->cell_voltage[ BMS_BATTERY_NUMBER_OF_CELLS-1 - cells_voltage_index++ ]);
 		}
 
 		// 0x004D	LowVoltage7-9
@@ -442,9 +408,8 @@ namespace CANLib
 		{
 			if (cells_voltage_index >= BMS_BATTERY_NUMBER_OF_CELLS)
 				break;
-
-			swap_endian(bms_packet_struct->cells_voltage[cells_voltage_index]);
-			obj_low_voltage_7_9.SetValue(i, bms_packet_struct->cells_voltage[cells_voltage_index++]);
+			
+			obj_low_voltage_7_9.SetValue(i, data->cell_voltage[ BMS_BATTERY_NUMBER_OF_CELLS-1 - cells_voltage_index++ ]);
 		}
 
 		// 0x004E	LowVoltage10-12
@@ -456,8 +421,7 @@ namespace CANLib
 			if (cells_voltage_index >= BMS_BATTERY_NUMBER_OF_CELLS)
 				break;
 
-			swap_endian(bms_packet_struct->cells_voltage[cells_voltage_index]);
-			obj_low_voltage_10_12.SetValue(i, bms_packet_struct->cells_voltage[cells_voltage_index++]);
+			obj_low_voltage_10_12.SetValue(i, data->cell_voltage[ BMS_BATTERY_NUMBER_OF_CELLS-1 - cells_voltage_index++ ]);
 		}
 
 		// 0x004F	LowVoltage13-15
@@ -469,8 +433,7 @@ namespace CANLib
 			if (cells_voltage_index >= BMS_BATTERY_NUMBER_OF_CELLS)
 				break;
 
-			swap_endian(bms_packet_struct->cells_voltage[cells_voltage_index]);
-			obj_low_voltage_13_15.SetValue(i, bms_packet_struct->cells_voltage[cells_voltage_index++]);
+			obj_low_voltage_13_15.SetValue(i, data->cell_voltage[ BMS_BATTERY_NUMBER_OF_CELLS-1 - cells_voltage_index++ ]);
 		}
 
 		// 0x0050	LowVoltage16-18
@@ -482,8 +445,7 @@ namespace CANLib
 			if (cells_voltage_index >= BMS_BATTERY_NUMBER_OF_CELLS)
 				break;
 
-			swap_endian(bms_packet_struct->cells_voltage[cells_voltage_index]);
-			obj_low_voltage_16_18.SetValue(i, bms_packet_struct->cells_voltage[cells_voltage_index++]);
+			obj_low_voltage_16_18.SetValue(i, data->cell_voltage[ BMS_BATTERY_NUMBER_OF_CELLS-1 - cells_voltage_index++ ]);
 		}
 
 		// 0x0051	LowVoltage19-21
@@ -495,8 +457,7 @@ namespace CANLib
 			if (cells_voltage_index >= BMS_BATTERY_NUMBER_OF_CELLS)
 				break;
 
-			swap_endian(bms_packet_struct->cells_voltage[cells_voltage_index]);
-			obj_low_voltage_19_21.SetValue(i, bms_packet_struct->cells_voltage[cells_voltage_index++]);
+			obj_low_voltage_19_21.SetValue(i, data->cell_voltage[ BMS_BATTERY_NUMBER_OF_CELLS-1 - cells_voltage_index++ ]);
 		}
 
 		// 0x0052	LowVoltage22-24
@@ -508,8 +469,7 @@ namespace CANLib
 			if (cells_voltage_index >= BMS_BATTERY_NUMBER_OF_CELLS)
 				break;
 
-			swap_endian(bms_packet_struct->cells_voltage[cells_voltage_index]);
-			obj_low_voltage_22_24.SetValue(i, bms_packet_struct->cells_voltage[cells_voltage_index++]);
+			obj_low_voltage_22_24.SetValue(i, data->cell_voltage[ BMS_BATTERY_NUMBER_OF_CELLS-1 - cells_voltage_index++ ]);
 		}
 
 		for (uint8_t i = 0; i < 3; i++)
@@ -517,8 +477,7 @@ namespace CANLib
 			if (cells_voltage_index >= BMS_BATTERY_NUMBER_OF_CELLS)
 				break;
 
-			swap_endian(bms_packet_struct->cells_voltage[cells_voltage_index]);
-			obj_low_voltage_25_27.SetValue(i, bms_packet_struct->cells_voltage[cells_voltage_index++]);
+			obj_low_voltage_25_27.SetValue(i, data->cell_voltage[ BMS_BATTERY_NUMBER_OF_CELLS-1 - cells_voltage_index++ ]);
 		}
 
 		for (uint8_t i = 0; i < 3; i++)
@@ -526,8 +485,7 @@ namespace CANLib
 			if (cells_voltage_index >= BMS_BATTERY_NUMBER_OF_CELLS)
 				break;
 
-			swap_endian(bms_packet_struct->cells_voltage[cells_voltage_index]);
-			obj_low_voltage_28_30.SetValue(i, bms_packet_struct->cells_voltage[cells_voltage_index++]);
+			obj_low_voltage_28_30.SetValue(i, data->cell_voltage[ BMS_BATTERY_NUMBER_OF_CELLS-1 - cells_voltage_index++ ]);
 		}
 
 		for (uint8_t i = 0; i < 3; i++)
@@ -535,8 +493,7 @@ namespace CANLib
 			if (cells_voltage_index >= BMS_BATTERY_NUMBER_OF_CELLS)
 				break;
 
-			swap_endian(bms_packet_struct->cells_voltage[cells_voltage_index]);
-			obj_low_voltage_31_33.SetValue(i, bms_packet_struct->cells_voltage[cells_voltage_index++]);
+			obj_low_voltage_31_33.SetValue(i, data->cell_voltage[ BMS_BATTERY_NUMBER_OF_CELLS-1 - cells_voltage_index++ ]);
 		}
 		
 		// 0x0056	BatteryPercent
@@ -545,15 +502,15 @@ namespace CANLib
 		//	<30: WARN, <15: CRIT, else: NORMAL
 		// Уровень заряда АКБ, проценты.
 		timer_type_t timer_type1 = CAN_TIMER_TYPE_NORMAL;
-		if (bms_packet_struct->percent < 15)
+		if (data->capacity_percent < 15)
 		{
 			timer_type1 = CAN_TIMER_TYPE_CRITICAL;
 		}
-		else if (bms_packet_struct->percent < 30)
+		else if (data->capacity_percent < 30)
 		{
 			timer_type1 = CAN_TIMER_TYPE_WARNING;
 		}
-		obj_battery_percent.SetValue(0, bms_packet_struct->percent, timer_type1);
+		obj_battery_percent.SetValue(0, data->capacity_percent, timer_type1);
 
 		// 0x0057	BatteryPower
 		// request | timer:1000
@@ -562,8 +519,7 @@ namespace CANLib
 		// Общая мощность потребления / зарядки.
 		// BMS data endian is already swapped
 		//obj_battery_power.SetValue(0, bms_packet_struct->voltage * bms_packet_struct->current / 100000, CAN_TIMER_TYPE_NORMAL);
-		swap_endian(bms_packet_struct->power);
-		obj_battery_power.SetValue(0, bms_packet_struct->power, CAN_TIMER_TYPE_NORMAL);
+		obj_battery_power.SetValue(0, data->total_power, CAN_TIMER_TYPE_NORMAL);
 
 		// 0x0046	MaxTemperature
 		// request | timer:5000 | event
