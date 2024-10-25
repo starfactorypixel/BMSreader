@@ -275,9 +275,9 @@ int main(void)
     //             When at least one mailbox is free, LED will go off.
     About::Setup();
     Leds::Setup();
+	SPI::Setup();
 	BMSLogic::Setup();
     CANLib::Setup();
-	SPI::Setup();
 
 
     InitDS18B20();
@@ -301,9 +301,9 @@ int main(void)
         // current_time = HAL_GetTick();
         About::Loop(current_time);
         Leds::Loop(current_time);
+		SPI::Loop(current_time);
 		BMSLogic::Loop(current_time);
         CANLib::Loop(current_time);
-		SPI::Loop(current_time);
     }
 }
 
