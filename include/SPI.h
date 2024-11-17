@@ -1,6 +1,7 @@
 #pragma once
 #include <inttypes.h>
-#include <SPIManager.h>
+#include <drivers/SPI_ZD25Q80B.h>
+#include <drivers/SPI_CAT25080.h>
 #include "SPIFast.h"
 
 extern SPI_HandleTypeDef hspi2;
