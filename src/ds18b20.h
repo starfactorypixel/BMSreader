@@ -19,13 +19,15 @@ extern "C" {
 #define RESOLUTION_11BIT 0x5F
 #define RESOLUTION_12BIT 0x7F
 //--------------------------------------------------
-#define DS_PORT GPIOB   //указать порт, к которому подключены датчики
-#define DS_PIN 9
 
+
+//указать порт, к которому подключены датчики
+#define DS_PORT GPIOB   
 #define GPIO_DS_PIN GPIO_PIN_9
 #define GPIO_DS_PIN_OUT GPIO_ODR_ODR9
 #define GPIO_DS_PIN_READ GPIO_IDR_IDR9
 //--------------------------------------------------
+
 void DelayMicr(uint32_t cn);
 void port_init(void);
 uint8_t ds18b20_init(uint8_t mode);

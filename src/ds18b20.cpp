@@ -22,10 +22,10 @@ void DelayMicr(uint32_t cn)
 //--------------------------------------------------
 void port_init(void)
 {
-  HAL_GPIO_DeInit(GPIOB, GPIO_DS_PIN);
-  GPIOB->CRH |= GPIO_CRH_MODE9;
-  GPIOB->CRH |= GPIO_CRH_CNF9_0;
-  GPIOB->CRH &= ~GPIO_CRH_CNF9_1;
+  HAL_GPIO_DeInit(DS_PORT, GPIO_DS_PIN);
+  DS_PORT->CRH |= GPIO_CRH_MODE9;
+  DS_PORT->CRH |= GPIO_CRH_CNF9_0;
+  DS_PORT->CRH &= ~GPIO_CRH_CNF9_1;
 }
 
 //*********************************************************************************************
@@ -52,11 +52,11 @@ uint8_t ds_reset_pulse(uint16_t PinMask)
 uint8_t ds18b20_Reset(void)
 {
   uint16_t status;
-	GPIOB->ODR &= ~GPIO_DS_PIN_OUT;//низкий уровень
+	DS_PORT->ODR &= ~GPIO_DS_PIN_OUT;//низкий уровень
   DelayMicro(485);//задержка как минимум на 480 микросекунд
-  GPIOB->ODR |= GPIO_DS_PIN_OUT;//высокий уровень
+  DS_PORT->ODR |= GPIO_DS_PIN_OUT;//высокий уровень
   DelayMicro(65);//задержка как минимум на 60 микросекунд
-  status = GPIOB->IDR & GPIO_DS_PIN_READ;//проверяем уровень
+  status = DS_PORT->IDR & GPIO_DS_PIN_READ;//проверяем уровень
   DelayMicro(500);//задержка как минимум на 480 микросекунд
   //(на всякий случай подождём побольше, так как могут быть неточности в задержке)
   return (status ? 1 : 0);//вернём результат
@@ -65,11 +65,11 @@ uint8_t ds18b20_Reset(void)
 uint8_t ds18b20_ReadBit(void)
 {
   uint8_t bit = 0;
-  GPIOB->ODR &= ~GPIO_DS_PIN_OUT;//низкий уровень
+  DS_PORT->ODR &= ~GPIO_DS_PIN_OUT;//низкий уровень
   DelayMicro(2);
-	GPIOB->ODR |= GPIO_DS_PIN_OUT;//высокий уровень
+	DS_PORT->ODR |= GPIO_DS_PIN_OUT;//высокий уровень
 	DelayMicro(13);
-	bit = (GPIOB->IDR & GPIO_DS_PIN_READ ? 1 : 0);//проверяем уровень	
+	bit = (DS_PORT->IDR & GPIO_DS_PIN_READ ? 1 : 0);//проверяем уровень	
 	DelayMicro(45);
   return bit;
 }
@@ -84,9 +84,9 @@ uint8_t ds18b20_ReadByte(void)
 //-----------------------------------------------
 void ds18b20_WriteBit(uint8_t bit)
 {
-  GPIOB->ODR &= ~GPIO_DS_PIN_OUT;
+  DS_PORT->ODR &= ~GPIO_DS_PIN_OUT;
   DelayMicro(bit ? 3 : 65);
-  GPIOB->ODR |= GPIO_DS_PIN_OUT;
+  DS_PORT->ODR |= GPIO_DS_PIN_OUT;
   DelayMicro(bit ? 65 : 3);
 }
 //-----------------------------------------------
