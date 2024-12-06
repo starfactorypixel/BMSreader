@@ -4,6 +4,106 @@
 #include "BMS_low_level_abstraction.h"
 #include <drivers/BMSAnt_Data.h>
 
+extern CAN_HandleTypeDef hcan;
+extern void HAL_CAN_Send(uint16_t id, uint8_t *data_raw, uint8_t length_raw);
+
+namespace CANLib
+{
+	static constexpr uint8_t CFG_CANObjectsCount = 22;
+	static constexpr uint8_t CFG_CANFrameBufferSize = 16;
+	static constexpr uint16_t CFG_CANFirstId = 0x0180;
+	
+	EasyPinD can_rs(GPIOA, {GPIO_PIN_15, GPIO_MODE_OUTPUT_OD, GPIO_NOPULL, GPIO_SPEED_FREQ_LOW});
+	
+	CANManager<CFG_CANObjectsCount, CFG_CANFrameBufferSize> can_manager(&HAL_CAN_Send);
+	
+	CANObject<uint8_t,  7> obj_block_info(CFG_CANFirstId + 0);
+	CANObject<uint8_t,  7> obj_block_health(CFG_CANFirstId + 1);
+	CANObject<uint8_t,  7> obj_block_features(CFG_CANFirstId + 2);
+	CANObject<uint8_t,  7> obj_block_error(CFG_CANFirstId + 3);
+
+	CANObject<int16_t,  1> obj_high_current_1(CFG_CANFirstId + 4, 1000);
+	CANObject<int16_t,  1> obj_high_current_2(CFG_CANFirstId + 5, 1000);
+	CANObject<uint8_t,  1> obj_battery_percent_1(CFG_CANFirstId + 6, 10000);
+	CANObject<uint8_t,  1> obj_battery_percent_2(CFG_CANFirstId + 7, 10000);
+	CANObject<int16_t,  1> obj_battery_power_1(CFG_CANFirstId + 8, 250);
+	CANObject<int16_t,  1> obj_battery_power_2(CFG_CANFirstId + 9, 250);
+	CANObject<int8_t,   1> obj_battery_state_1(CFG_CANFirstId + 10, CAN_TIMER_DISABLED, 300);
+	CANObject<int8_t,   1> obj_battery_state_2(CFG_CANFirstId + 11, CAN_TIMER_DISABLED, 300);
+	CANObject<uint16_t, 1> obj_high_voltage_1(CFG_CANFirstId + 12, 1000);
+	CANObject<uint16_t, 1> obj_high_voltage_2(CFG_CANFirstId + 13, 1000);
+	CANObject<uint16_t, 3> obj_low_voltage_min_max_delta_1(CFG_CANFirstId + 14, 5000, 300);
+	CANObject<uint16_t, 3> obj_low_voltage_min_max_delta_2(CFG_CANFirstId + 15, 5000, 300);
+	CANObject<uint16_t, 2> obj_low_voltage_batt_1(CFG_CANFirstId + 16);
+	CANObject<uint16_t, 2> obj_low_voltage_batt_2(CFG_CANFirstId + 17);
+	CANObject<int8_t,   1> obj_max_temperature_1(CFG_CANFirstId + 18, 5000, 300);
+	CANObject<int8_t,   1> obj_max_temperature_2(CFG_CANFirstId + 19, 5000, 300);
+	CANObject<int8_t,   2> obj_temperature_1(CFG_CANFirstId + 20);
+	CANObject<int8_t,   2> obj_temperature_2(CFG_CANFirstId + 21);
+	
+	
+	void CAN_Enable()
+	{
+		HAL_CAN_ActivateNotification(&hcan, CAN_IT_RX_FIFO0_MSG_PENDING | CAN_IT_ERROR | CAN_IT_BUSOFF | CAN_IT_LAST_ERROR_CODE);
+		HAL_CAN_Start(&hcan);
+		
+		can_rs.On();
+		
+		return;
+	}
+	
+	void CAN_Disable()
+	{
+		HAL_CAN_DeactivateNotification(&hcan, CAN_IT_RX_FIFO0_MSG_PENDING | CAN_IT_ERROR | CAN_IT_BUSOFF | CAN_IT_LAST_ERROR_CODE);
+		HAL_CAN_Stop(&hcan);
+		
+		can_rs.Off();
+		
+		return;
+	}
+	
+	inline void Setup()
+	{
+		can_rs.Init();
+		
+		set_block_info_params(obj_block_info);
+		set_block_health_params(obj_block_health);
+		set_block_features_params(obj_block_features);
+		set_block_error_params(obj_block_error);
+		
+		can_manager.RegisterObject(obj_block_info);
+		can_manager.RegisterObject(obj_block_health);
+		can_manager.RegisterObject(obj_block_features);
+		can_manager.RegisterObject(obj_block_error);
+
+		can_manager.RegisterObject(obj_high_current_1);
+		can_manager.RegisterObject(obj_high_current_2);
+		can_manager.RegisterObject(obj_battery_percent_1);
+		can_manager.RegisterObject(obj_battery_percent_2);
+		can_manager.RegisterObject(obj_battery_power_1);
+		can_manager.RegisterObject(obj_battery_power_2);
+		can_manager.RegisterObject(obj_battery_state_1);
+		can_manager.RegisterObject(obj_battery_state_2);
+		can_manager.RegisterObject(obj_high_voltage_1);
+		can_manager.RegisterObject(obj_high_voltage_2);
+		can_manager.RegisterObject(obj_low_voltage_min_max_delta_1);
+		can_manager.RegisterObject(obj_low_voltage_min_max_delta_2);
+		can_manager.RegisterObject(obj_low_voltage_batt_1);
+		can_manager.RegisterObject(obj_low_voltage_batt_2);
+		can_manager.RegisterObject(obj_max_temperature_1);
+		can_manager.RegisterObject(obj_max_temperature_2);
+		can_manager.RegisterObject(obj_temperature_1);
+		can_manager.RegisterObject(obj_temperature_2);
+
+
+
+/*
+#pragma once
+#include <EasyPinD.h>
+#include <CANLibrary.h>
+#include "BMS_low_level_abstraction.h"
+#include <drivers/BMSAnt_Data.h>
+
 
 
 extern CAN_HandleTypeDef hcan;
@@ -188,79 +288,28 @@ namespace CANLib
 	// Состояние АКБ ( зарядка, разрядка, ... )
 	CANObject<int8_t, 1> obj_battery_state(0x0058);
 
+*/
 
 
-
-
-
-
-
-
-
-	void HardwareSetup()
-	{
-		can_rs.Init();
-		
-		HAL_CAN_ActivateNotification(&hcan, CAN_IT_RX_FIFO0_MSG_PENDING | CAN_IT_ERROR | CAN_IT_BUSOFF | CAN_IT_LAST_ERROR_CODE);
-		HAL_CAN_Start(&hcan);
-	}
-	
-	inline void Setup()
-	{
-		HardwareSetup();
-		
-		// system blocks
-		set_block_info_params(obj_block_info);
-		set_block_health_params(obj_block_health);
-		set_block_features_params(obj_block_features);
-		set_block_error_params(obj_block_error);
-
-		// common blocks
-		can_manager.RegisterObject(obj_block_info);
-		can_manager.RegisterObject(obj_block_health);
-		can_manager.RegisterObject(obj_block_features);
-		can_manager.RegisterObject(obj_block_error);
-
-		// specific blocks
-		can_manager.RegisterObject(obj_high_voltage);
-		can_manager.RegisterObject(obj_high_current);
-		can_manager.RegisterObject(obj_max_temperature);
-		can_manager.RegisterObject(obj_low_voltage_min_max_delta);
-		can_manager.RegisterObject(obj_temperature_1);
-		can_manager.RegisterObject(obj_temperature_2);
-		can_manager.RegisterObject(obj_temperature_3);
-		can_manager.RegisterObject(obj_low_voltage_1_3);
-
-		can_manager.RegisterObject(obj_low_voltage_4_6);
-		can_manager.RegisterObject(obj_low_voltage_7_9);
-		can_manager.RegisterObject(obj_low_voltage_10_12);
-		can_manager.RegisterObject(obj_low_voltage_13_15);
-		can_manager.RegisterObject(obj_low_voltage_16_18);
-		can_manager.RegisterObject(obj_low_voltage_19_21);
-		can_manager.RegisterObject(obj_low_voltage_22_24);
-		can_manager.RegisterObject(obj_low_voltage_25_27);
-		can_manager.RegisterObject(obj_low_voltage_28_30);
-		can_manager.RegisterObject(obj_low_voltage_31_33);
-		can_manager.RegisterObject(obj_battery_percent);
-		can_manager.RegisterObject(obj_battery_power);
-		
-		// Set versions data to block_info.
+		// Передача версий и типов в объект block_info
 		obj_block_info.SetValue(0, (About::board_type << 3 | About::board_ver), CAN_TIMER_TYPE_NORMAL);
 		obj_block_info.SetValue(1, (About::soft_ver << 2 | About::can_ver), CAN_TIMER_TYPE_NORMAL);
+
+		CAN_Enable();
 		
 		return;
 	}
-	
+
 	inline void Loop(uint32_t &current_time)
 	{
 		can_manager.Process(current_time);
-		
-		// Set uptime to block_info.
-		static uint32_t iter = 0;
-		if(current_time - iter > 1000)
-		{
-			iter = current_time;
 
+		// Передача UpTime блока в объект block_info
+		static uint32_t iter1000 = 0;
+		if(current_time - iter1000 > 1000)
+		{
+			iter1000 = current_time;
+			
 			uint8_t *data = (uint8_t *)&current_time;
 			obj_block_info.SetValue(2, data[0], CAN_TIMER_TYPE_NORMAL);
 			obj_block_info.SetValue(3, data[1], CAN_TIMER_TYPE_NORMAL);
@@ -268,6 +317,7 @@ namespace CANLib
 			obj_block_info.SetValue(5, data[3], CAN_TIMER_TYPE_NORMAL);
 		}
 		
+		// При выходе обновляем время
 		current_time = HAL_GetTick();
 		
 		return;

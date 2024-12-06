@@ -279,10 +279,7 @@ int main(void)
 	BMSLogic::Setup();
     CANLib::Setup();
 
-
     InitDS18B20();
-
-	Leds::obj.SetOn(Leds::LED_GREEN, 50, 1950);
 
     uint32_t last_tick1 = HAL_GetTick();
     uint32_t current_time = HAL_GetTick();
