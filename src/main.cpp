@@ -8,17 +8,7 @@
 #include <CANLogic.h>
 #include <BMSLogic.h>
 #include <Analog.h>
-#include "ds18b20.h"
-#include "BMS_low_level_abstraction.h"
-
-
-
-
-#define MARKER_FIRST_START 100 // Маркер что flash не пустая
-
-#define BMS_BATTERY_NUMBER_OF_CELLS 32 // Number of cells in BMS packet
-#define BMS_PACKET_HEADER 0xAA55AAFF   // from SlaveECU github
-
+#include <OneWire.h>
 
 
 ADC_HandleTypeDef hadc1;
@@ -28,12 +18,7 @@ UART_HandleTypeDef hDebugUart;
 UART_HandleTypeDef hBms1Uart;
 UART_HandleTypeDef hBms2Uart;
 
-//------------------------  Ds18b20
-#define MAX_DS18B20_COUNT 8 // TODO: почему 8?! Вроде по описанию в гуглотаблице максимум 6 должно быть...
-uint8_t Dev_ID[MAX_DS18B20_COUNT][8] = {0};
-uint8_t Dev_Cnt;
-int8_t temperatures[MAX_DS18B20_COUNT] = {0};
-
+TIM_HandleTypeDef htim1;
 
 
 void SystemClock_Config(void);
@@ -44,10 +29,7 @@ static void MX_USART1_UART_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_GPIO_Init(void);
-
-
-
-
+static void MX_TIM1_Init(void);
 
 
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
@@ -172,84 +154,6 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
 }
 
 
-
-
-
-
-
-
-
-
-
-/// @brief
-void read_ds18b20()
-{
-    // TODO: We should carefully check the ds18b20 temperature conversion
-    // I really didn't figure out are this temperature conversions correct or not
-    // Probably this conversion loses sign of temperature...
-    // In ideal world we should rewrite all ds18b20 related code into OOP paradigm
-
-    uint8_t dt[8];
-    uint16_t raw_temper;
-    float temper;
-
-    // TODO: Dev_Cnt filled in the ds18b20,cpp as extern variable
-    // Should rewrite this
-    for (uint8_t i = 1; i <= Dev_Cnt; i++)
-    {
-        ds18b20_MeasureTemperCmd(NO_SKIP_ROM, i);
-    }
-    for (uint8_t i = 1; i <= Dev_Cnt; i++)
-    {
-        ds18b20_ReadStratcpad(NO_SKIP_ROM, dt, i);
-        DEBUG_LOG_TOPIC("DS18b", "STRATHPAD %d: %02X %02X %02X %02X %02X %02X %02X %02X\n",
-               i, dt[0], dt[1], dt[2], dt[3], dt[4], dt[5], dt[6], dt[7]);
-
-        raw_temper = ((uint16_t)dt[1] << 8) | dt[0];
-        temper = ds18b20_Convert(raw_temper);
-
-        DEBUG_LOG_TOPIC("DS18b", "Raw t: 0x%04X; t: %s%.2f\n", raw_temper, (ds18b20_GetSign(raw_temper)) ? "-" : "+", temper);
-
-        // int8_t temperatures[ADC_CHANNEL_COUNT + MAX_DS18B20_COUNT];
-        //    t[0]..t[ADC_CHANNEL_COUNT-1] - external temperature sensors (ADC)
-        //    t[ADC_CHANNEL_COUNT]..t[max] - external temperature sensors (ds18b20)
-        if (i - 1 < MAX_DS18B20_COUNT)
-        {
-            temperatures[i - 1] = (int8_t)(temper);
-        }
-    }
-}
-
-/// @brief Initialization of DS18B20 digital termometers
-void InitDS18B20()
-{
-    port_init();
-    DEBUG_LOG_TOPIC("DS18b", "Init Status: %d\n", ds18b20_init(NO_SKIP_ROM));
-    DEBUG_LOG_TOPIC("DS18b", "Dev count: %d\n", Dev_Cnt);
-    for (uint8_t i = 1; i <= Dev_Cnt; i++)
-    {
-        DEBUG_LOG_TOPIC("DS18b", "Device %d\n", i);
-        DEBUG_LOG_TOPIC("DS18b", "ROM RAW: %02X %02X %02X %02X %02X %02X %02X %02X\n",
-            Dev_ID[i - 1][0], Dev_ID[i - 1][1], Dev_ID[i - 1][2], Dev_ID[i - 1][3],
-            Dev_ID[i - 1][4], Dev_ID[i - 1][5], Dev_ID[i - 1][6], Dev_ID[i - 1][7]);
-        DEBUG_LOG_TOPIC("DS18b", "Family CODE: 0x%02X\n", Dev_ID[i - 1][0]);
-        DEBUG_LOG_TOPIC("DS18b", "ROM CODE: 0x%02X%02X%02X%02X%02X%02X\n", Dev_ID[i - 1][6], Dev_ID[i - 1][5],
-            Dev_ID[i - 1][4], Dev_ID[i - 1][3], Dev_ID[i - 1][2], Dev_ID[i - 1][1]);
-        DEBUG_LOG_TOPIC("DS18b", "CRC: 0x%02X\n", Dev_ID[i - 1][7]);
-    }
-}
-
-/// @brief Updates temperature data in temperatures[ADC_CHANNEL_COUNT + MAX_DS18B20_COUNT]
-void UpdateTemperatureData()
-{
-    // int8_t temperatures[ADC_CHANNEL_COUNT + MAX_DS18B20_COUNT];
-    //    t[0]..t[ADC_CHANNEL_COUNT-1] - external temperature sensors (ADC)
-    //    t[ADC_CHANNEL_COUNT]..t[max] - external temperature sensors (ds18b20)
-    read_ds18b20();
-}
-
-/// @brief  The application entry point.
-/// @retval int
 int main(void)
 {
     /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
@@ -265,6 +169,7 @@ int main(void)
 	MX_USART2_UART_Init();
 	MX_USART3_UART_Init();
 	MX_GPIO_Init();
+	MX_TIM1_Init();
 	
 
     // Сразу после инициализации периферии, иначе программа упадёт, если попробовать включить диод.
@@ -277,31 +182,19 @@ int main(void)
     Leds::Setup();
 	SPI::Setup();
 	BMSLogic::Setup();
+	OneWire::Setup();
     CANLib::Setup();
 
-    InitDS18B20();
-
-    uint32_t last_tick1 = HAL_GetTick();
-    uint32_t current_time = HAL_GetTick();
-    while (1)
-    {
-
-        // Perform ADC & ds18b20 reading with 1 sec period
-        if (current_time - last_tick1 > 1000)
-        {
-            UpdateTemperatureData();
-            CANLib::UpdateCANObjects_ExternalTemperature(temperatures, MAX_DS18B20_COUNT);
-            last_tick1 = current_time;
-        }
-
-        // don't need to update current_time because it is always updated by Loop() functions
-        // current_time = HAL_GetTick();
-        About::Loop(current_time);
-        Leds::Loop(current_time);
+	uint32_t current_time = HAL_GetTick();
+	while (1)
+	{
+		About::Loop(current_time);
+		Leds::Loop(current_time);
 		SPI::Loop(current_time);
 		BMSLogic::Loop(current_time);
-        CANLib::Loop(current_time);
-    }
+		OneWire::Loop(current_time);
+		CANLib::Loop(current_time);
+	}
 }
 
 void SystemClock_Config(void)
@@ -506,3 +399,47 @@ void assert_failed(uint8_t *file, uint32_t line)
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
+
+static void MX_TIM1_Init(void)
+{
+	__HAL_RCC_TIM1_CLK_ENABLE();
+
+  /* USER CODE BEGIN TIM1_Init 0 */
+
+  /* USER CODE END TIM1_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM1_Init 1 */
+
+  /* USER CODE END TIM1_Init 1 */
+  htim1.Instance = TIM1;
+  htim1.Init.Prescaler = 63;
+  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim1.Init.Period = 65535;
+  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim1.Init.RepetitionCounter = 0;
+  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
+  {
+	Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK)
+  {
+	Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
+  {
+	Error_Handler();
+  }
+  /* USER CODE BEGIN TIM1_Init 2 */
+
+  /* USER CODE END TIM1_Init 2 */
+
+  HAL_TIM_Base_Start(&htim1);
+
+}

@@ -1,7 +1,6 @@
 #pragma once
 #include <EasyPinD.h>
 #include <CANLibrary.h>
-#include "BMS_low_level_abstraction.h"
 #include <drivers/BMSAnt_Data.h>
 
 extern CAN_HandleTypeDef hcan;
@@ -347,7 +346,7 @@ namespace CANLib
 		}
 		for (uint8_t i = 0; i < 7; i++)
 		{
-			curr_temp = obj_temperature_3.GetValue(i);
+			//curr_temp = obj_temperature_3.GetValue(i);
 			if (curr_temp > max_temp)
 				max_temp = curr_temp;
 		}
@@ -365,10 +364,11 @@ namespace CANLib
 		}
 
 		// TODO: надо ещё обсудить по event_type и его присваивать
-		obj_max_temperature.SetValue(0, max_temp, timer_type, event_type);
+		//obj_max_temperature.SetValue(0, max_temp, timer_type, event_type);
 	}
 
-	void UpdateCANObjects_BMS(const BMSANT::packet_raw_reverse_t *data)
+/*
+	void UpdateCANObjects_BMS1(const BMSANT::packet_raw_reverse_t *data)
 	{
 		//packet_structure_t *bms_packet_struct = (packet_structure_t *)bms_raw_packet_data;
 
@@ -578,7 +578,7 @@ namespace CANLib
 		// Максимально зафиксированная температура.
 		UpdateMaxTemperature();
 	}
-
+*/
 	void UpdateCANObjects_ExternalTemperature(int8_t *temperature_data, uint8_t data_count)
 	{
 		if (temperature_data == nullptr)
@@ -618,7 +618,7 @@ namespace CANLib
 		{
 			if (data_index >= data_count)
 				return;
-			obj_temperature_3.SetValue(i, temperature_data[data_index++]);
+			//obj_temperature_3.SetValue(i, temperature_data[data_index++]);
 		}
 
 		// 0x0046	MaxTemperature

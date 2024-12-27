@@ -1,9 +1,4 @@
 #pragma once
-
-#include "BMS_low_level_abstraction.h"
-
-#include <bms_ant_data.h>
-
 #include <BMSManager.h>
 #include <drivers/BMSAnt.h>
 #include <drivers/BMSOther.h>
@@ -48,6 +43,73 @@ namespace BMSLogic
 	{
 		DEBUG_LOG_TOPIC("BMS-ERR", "idx: %d, code: %d\n", idx, code);
 	}
+
+
+	void UpdateCANObjects_BMS1(const BMSANT::packet_raw_reverse_t *data)
+	{
+		timer_type_t timer_type = CAN_TIMER_TYPE_NORMAL;
+		event_type_t event_type = CAN_EVENT_TYPE_NONE;
+
+
+
+		CANLib::obj_high_current_1.SetValue(0, data->total_current, CAN_TIMER_TYPE_NORMAL);
+
+
+		timer_type = CAN_TIMER_TYPE_NORMAL;
+		if (data->capacity_percent < 15)
+		{
+			timer_type = CAN_TIMER_TYPE_CRITICAL;
+		}
+		else if (data->capacity_percent < 30)
+		{
+			timer_type = CAN_TIMER_TYPE_WARNING;
+		}
+		CANLib::obj_battery_percent_1.SetValue(0, data->capacity_percent, timer_type);
+
+
+
+		CANLib::obj_battery_power_1.SetValue(0, data->total_power, CAN_TIMER_TYPE_NORMAL);
+		//CANLib::obj_battery_state_1.SetValue(0, data->, CAN_TIMER_TYPE_NORMAL);
+		CANLib::obj_high_voltage_1.SetValue(0, data->total_voltage, CAN_TIMER_TYPE_NORMAL);
+
+		
+
+		timer_type = CAN_TIMER_TYPE_NORMAL;
+		event_type = CAN_EVENT_TYPE_NONE;
+		if(data->cell_vmin_volt >= 2700 && data->cell_vmin_volt <= 3000)
+		{
+			timer_type = CAN_TIMER_TYPE_WARNING;
+		}
+		else if(data->cell_vmin_volt < 2700 || data->cell_vmax_volt > 4200)
+		{
+			timer_type = CAN_TIMER_TYPE_CRITICAL;
+			event_type = CAN_EVENT_TYPE_ERROR;
+		}
+		CANLib::obj_low_voltage_min_max_delta_1.SetValue(0, data->cell_vmin_volt, timer_type, event_type);
+		CANLib::obj_low_voltage_min_max_delta_1.SetValue(1, data->cell_vmax_volt, timer_type, event_type);
+		CANLib::obj_low_voltage_min_max_delta_1.SetValue(2, (data->cell_vmax_volt - data->cell_vmin_volt), timer_type, event_type);
+
+
+
+		//CANLib::obj_low_voltage_batt_1.SetValue(0, data->total_voltage, CAN_TIMER_TYPE_NORMAL);
+		//CANLib::obj_max_temperature_1.SetValue(0, data->total_voltage, CAN_TIMER_TYPE_NORMAL);
+		//CANLib::obj_temperature_1.SetValue(0, data->total_voltage, CAN_TIMER_TYPE_NORMAL);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		//UpdateMaxTemperature();
+	}
 	
 	
 	inline void Setup()
@@ -57,7 +119,7 @@ namespace BMSLogic
 		uart_data[BMS_1].hal = &hBms1Uart;
 		uart_data[BMS_2].hal = &hBms2Uart;
 		
-		Ant1.SetReadyCallback( CANLib::UpdateCANObjects_BMS );
+		Ant1.SetReadyCallback( UpdateCANObjects_BMS1 );
 		//Ant2.SetReadyCallback();
 
 		Bms.SetModel(BMS_1, Ant1);
