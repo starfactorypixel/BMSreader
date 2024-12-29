@@ -2,6 +2,7 @@
 #include <BMSManager.h>
 #include <drivers/BMSAnt.h>
 #include <drivers/BMSOther.h>
+#include <CollectionStream.h>
 
 extern UART_HandleTypeDef hBms1Uart;
 extern UART_HandleTypeDef hBms2Uart;
@@ -15,6 +16,13 @@ namespace BMSLogic
 	BMSAnt Ant1;
 	BMSAnt Ant2;
 	BMSManager Bms(BMS_UART_TX, BMS_ERROR);
+
+
+	void OnLowVoltageBatt1Steam(uint16_t coll_el, uint8_t idx);
+	void OnLowVoltageBatt2Steam(uint16_t coll_el, uint8_t idx);
+
+	CollectionStream<uint16_t> LowVoltageBatt1Stream(Ant1.data->cell_voltage, BMSANT::CellsNumber, OnLowVoltageBatt1Steam);
+	CollectionStream<uint16_t> LowVoltageBatt2Stream(Ant2.data->cell_voltage, BMSANT::CellsNumber, OnLowVoltageBatt2Steam);
 	
 	struct data_t
 	{
@@ -69,7 +77,9 @@ namespace BMSLogic
 
 
 		CANLib::obj_battery_power_1.SetValue(0, data->total_power, CAN_TIMER_TYPE_NORMAL);
+		
 		//CANLib::obj_battery_state_1.SetValue(0, data->, CAN_TIMER_TYPE_NORMAL);
+		
 		CANLib::obj_high_voltage_1.SetValue(0, data->total_voltage, CAN_TIMER_TYPE_NORMAL);
 
 		
@@ -111,6 +121,22 @@ namespace BMSLogic
 		//UpdateMaxTemperature();
 	}
 	
+	void OnLowVoltageBatt1Steam(uint16_t coll_el, uint8_t idx)
+	{
+		CANLib::obj_low_voltage_batt_1.SetValue(0, (idx + 1), CAN_TIMER_TYPE_NONE, CAN_EVENT_TYPE_NORMAL);
+		CANLib::obj_low_voltage_batt_1.SetValue(1, coll_el, CAN_TIMER_TYPE_NONE, CAN_EVENT_TYPE_NORMAL);
+		
+		return;
+	}
+	
+	void OnLowVoltageBatt2Steam(uint16_t coll_el, uint8_t idx)
+	{
+		CANLib::obj_low_voltage_batt_2.SetValue(0, (idx + 1), CAN_TIMER_TYPE_NONE, CAN_EVENT_TYPE_NORMAL);
+		CANLib::obj_low_voltage_batt_2.SetValue(1, coll_el, CAN_TIMER_TYPE_NONE, CAN_EVENT_TYPE_NORMAL);
+
+		return;
+	}
+	
 	
 	inline void Setup()
 	{
@@ -125,6 +151,19 @@ namespace BMSLogic
 		Bms.SetModel(BMS_1, Ant1);
 		Bms.SetModel(BMS_2, Ant2);
 
+		CANLib::obj_low_voltage_batt_1.RegisterFunctionRequest([](can_frame_t &can_frame, can_error_t &error) -> can_result_t
+		{
+			LowVoltageBatt1Stream.Start(100);
+			
+			return CAN_RESULT_IGNORE;
+		});
+		CANLib::obj_low_voltage_batt_2.RegisterFunctionRequest([](can_frame_t &can_frame, can_error_t &error) -> can_result_t
+		{
+			LowVoltageBatt2Stream.Start(100);
+			
+			return CAN_RESULT_IGNORE;
+		});
+
 		
 		HAL_UARTEx_ReceiveToIdle_IT(uart_data[BMS_1].hal, uart_data[BMS_1].hot, sizeof(uart_data[BMS_1].hot));
 		HAL_UARTEx_ReceiveToIdle_IT(uart_data[BMS_2].hal, uart_data[BMS_2].hot, sizeof(uart_data[BMS_2].hot));
@@ -135,16 +174,20 @@ namespace BMSLogic
 	inline void Loop(uint32_t &current_time)
 	{
 		Bms.Tick(current_time);
+
+		LowVoltageBatt1Stream.Processing(current_time);
+		LowVoltageBatt2Stream.Processing(current_time);
 		
 		static uint32_t tick500 = 0;
 		if(current_time - tick500 > 500)
 		{
 			tick500 = current_time;
-
+/*
 			DEBUG_LOG_TOPIC("BMS1", "vol: %d, cur: %d, pow: %d\n", Bms.data[0].voltage, Bms.data[0].current, Bms.data[0].power);
 			DEBUG_LOG_TOPIC("BMS2", "vol: %d, cur: %d, pow: %d\n", Bms.data[1].voltage, Bms.data[1].current, Bms.data[1].power);
 			DEBUG_LOG_ARRAY_HEX("BMS1-hex", (uint8_t *)Ant1.data, 140);
 			DEBUG_LOG_NEW_LINE();
+*/
 		}
 					//CANLib::UpdateCANObjects_BMS(obj->cold);
 
