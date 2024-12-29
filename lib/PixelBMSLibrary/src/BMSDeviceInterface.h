@@ -26,24 +26,6 @@ class BMSDeviceInterface
 		}
 	
 	protected:
-
-		void _ReverseArray(uint8_t *array, uint8_t length)
-		{
-			uint8_t i = 0;
-			uint8_t j = length - 1;
-			uint8_t temp;
-			while(i < j)
-			{
-				temp = array[i];
-				array[i] = array[j];
-				array[j] = temp;
-				
-				i++;
-				j--;
-			}
-
-			return;
-		}
 		
 		bool _initiated;
 		BMSManager *_manager;
