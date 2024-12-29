@@ -1,5 +1,6 @@
 #pragma once
 #include <inttypes.h>
+#include <CUtils.h>
 #include <BMSDeviceInterface.h>
 #include <drivers/BMSAnt_Data.h>
 
@@ -35,7 +36,7 @@ class BMSAnt : public BMSDeviceInterface
 				_ready = false;
 			
 				// Т.к. данные представленны в формате big-endian, обращаем массив для просторы работы
-				_ReverseArray(_data, sizeof(_data));
+				array_reverse(_data, sizeof(_data));
 
 				_PostProcessing();
 
@@ -79,7 +80,7 @@ class BMSAnt : public BMSDeviceInterface
 		}
 		
 		// Объект готовых данных.
-		const BMSANT::packet_raw_reverse_t *data = {};
+		const BMSANT::packet_raw_reverse_t *data = (BMSANT::packet_raw_reverse_t *)_data;
 		
 	private:
 		
@@ -94,8 +95,11 @@ class BMSAnt : public BMSDeviceInterface
 		
 		void _PostProcessing()
 		{
-			data = (BMSANT::packet_raw_reverse_t *)_data;
-
+			BMSANT::packet_raw_reverse_t *data = (BMSANT::packet_raw_reverse_t *) _data;
+			
+			array_reverse(data->cell_voltage, BMSANT::CellsNumber);
+			array_reverse(data->temperature, BMSANT::TempsNumber);
+			
 			return;
 		}
 		
