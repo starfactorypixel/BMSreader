@@ -2,7 +2,7 @@
 #include <BMSManager.h>
 #include <drivers/BMSAnt.h>
 #include <drivers/BMSOther.h>
-#include <CollectionStream.h>
+#include <CUtils.h>
 
 extern UART_HandleTypeDef hBms1Uart;
 extern UART_HandleTypeDef hBms2Uart;
@@ -18,8 +18,8 @@ namespace BMSLogic
 	BMSManager Bms(BMS_UART_TX, BMS_ERROR);
 
 
-	void OnLowVoltageBatt1Steam(uint16_t coll_el, uint8_t idx);
-	void OnLowVoltageBatt2Steam(uint16_t coll_el, uint8_t idx);
+	void OnLowVoltageBatt1Steam(auto coll_el, uint8_t idx);
+	void OnLowVoltageBatt2Steam(auto coll_el, uint8_t idx);
 
 	CollectionStream<uint16_t> LowVoltageBatt1Stream(Ant1.data->cell_voltage, BMSANT::CellsNumber, OnLowVoltageBatt1Steam);
 	CollectionStream<uint16_t> LowVoltageBatt2Stream(Ant2.data->cell_voltage, BMSANT::CellsNumber, OnLowVoltageBatt2Steam);
@@ -121,7 +121,7 @@ namespace BMSLogic
 		//UpdateMaxTemperature();
 	}
 	
-	void OnLowVoltageBatt1Steam(uint16_t coll_el, uint8_t idx)
+	void OnLowVoltageBatt1Steam(auto coll_el, uint8_t idx)
 	{
 		CANLib::obj_low_voltage_batt_1.SetValue(0, (idx + 1), CAN_TIMER_TYPE_NONE, CAN_EVENT_TYPE_NORMAL);
 		CANLib::obj_low_voltage_batt_1.SetValue(1, coll_el, CAN_TIMER_TYPE_NONE, CAN_EVENT_TYPE_NORMAL);
@@ -129,7 +129,7 @@ namespace BMSLogic
 		return;
 	}
 	
-	void OnLowVoltageBatt2Steam(uint16_t coll_el, uint8_t idx)
+	void OnLowVoltageBatt2Steam(auto coll_el, uint8_t idx)
 	{
 		CANLib::obj_low_voltage_batt_2.SetValue(0, (idx + 1), CAN_TIMER_TYPE_NONE, CAN_EVENT_TYPE_NORMAL);
 		CANLib::obj_low_voltage_batt_2.SetValue(1, coll_el, CAN_TIMER_TYPE_NONE, CAN_EVENT_TYPE_NORMAL);
