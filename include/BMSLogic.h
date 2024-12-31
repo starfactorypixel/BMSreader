@@ -18,11 +18,11 @@ namespace BMSLogic
 	BMSManager Bms(BMS_UART_TX, BMS_ERROR);
 
 
-	void OnLowVoltageBatt1Steam(auto coll_el, uint8_t idx);
-	void OnLowVoltageBatt2Steam(auto coll_el, uint8_t idx);
+	void OnLowVoltageBatt1Stream(auto coll_el, uint8_t idx);
+	void OnLowVoltageBatt2Stream(auto coll_el, uint8_t idx);
 
-	CollectionStream<uint16_t> LowVoltageBatt1Stream(Ant1.data->cell_voltage, BMSANT::CellsNumber, OnLowVoltageBatt1Steam);
-	CollectionStream<uint16_t> LowVoltageBatt2Stream(Ant2.data->cell_voltage, BMSANT::CellsNumber, OnLowVoltageBatt2Steam);
+	CollectionStream<uint16_t> LowVoltageBatt1Stream(Ant1.data->cell_voltage, BMSANT::CellsNumber, OnLowVoltageBatt1Stream);
+	CollectionStream<uint16_t> LowVoltageBatt2Stream(Ant2.data->cell_voltage, BMSANT::CellsNumber, OnLowVoltageBatt2Stream);
 	
 	struct data_t
 	{
@@ -99,29 +99,14 @@ namespace BMSLogic
 		CANLib::obj_low_voltage_min_max_delta_1.SetValue(1, data->cell_vmax_volt, timer_type, event_type);
 		CANLib::obj_low_voltage_min_max_delta_1.SetValue(2, (data->cell_vmax_volt - data->cell_vmin_volt), timer_type, event_type);
 
-
-
-		//CANLib::obj_low_voltage_batt_1.SetValue(0, data->total_voltage, CAN_TIMER_TYPE_NORMAL);
-		//CANLib::obj_max_temperature_1.SetValue(0, data->total_voltage, CAN_TIMER_TYPE_NORMAL);
-		//CANLib::obj_temperature_1.SetValue(0, data->total_voltage, CAN_TIMER_TYPE_NORMAL);
-
-
-
-
-
-
-
-
-
-
-
+		Temp::PutFromBms(0, data->temperature, BMSANT::TempsNumber);
 
 
 
 		//UpdateMaxTemperature();
 	}
 	
-	void OnLowVoltageBatt1Steam(auto coll_el, uint8_t idx)
+	void OnLowVoltageBatt1Stream(auto coll_el, uint8_t idx)
 	{
 		CANLib::obj_low_voltage_batt_1.SetValue(0, (idx + 1), CAN_TIMER_TYPE_NONE, CAN_EVENT_TYPE_NORMAL);
 		CANLib::obj_low_voltage_batt_1.SetValue(1, coll_el, CAN_TIMER_TYPE_NONE, CAN_EVENT_TYPE_NORMAL);
@@ -129,7 +114,7 @@ namespace BMSLogic
 		return;
 	}
 	
-	void OnLowVoltageBatt2Steam(auto coll_el, uint8_t idx)
+	void OnLowVoltageBatt2Stream(auto coll_el, uint8_t idx)
 	{
 		CANLib::obj_low_voltage_batt_2.SetValue(0, (idx + 1), CAN_TIMER_TYPE_NONE, CAN_EVENT_TYPE_NORMAL);
 		CANLib::obj_low_voltage_batt_2.SetValue(1, coll_el, CAN_TIMER_TYPE_NONE, CAN_EVENT_TYPE_NORMAL);

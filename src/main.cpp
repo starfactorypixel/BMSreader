@@ -6,6 +6,7 @@
 #include <About.h>
 #include <Leds.h>
 #include <CANLogic.h>
+#include <Temperature.h>
 #include <BMSLogic.h>
 #include <Analog.h>
 #include <OneWire.h>

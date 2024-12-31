@@ -15,6 +15,9 @@ namespace OneWire
 		{
 			for(uint8_t i = 0; i < count; ++i)
 			{
+				Temp::PutFrom1WireByIdx(0, obj[i].temp, i);
+				Temp::PutFrom1WireByIdx(1, obj[i].temp, i);
+
 				Logger.Printf("Rom: %02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X, Temp: %05d°C, Valid: %d, Min: %d, Mid: %d, Max: %d", 
 				obj[i].rom->raw[0], obj[i].rom->raw[1], obj[i].rom->raw[2], obj[i].rom->raw[3], 
 				obj[i].rom->raw[4], obj[i].rom->raw[5], obj[i].rom->raw[6], obj[i].rom->raw[7], 
