@@ -184,6 +184,7 @@ int main(void)
 	SPI::Setup();
 	BMSLogic::Setup();
 	OneWire::Setup();
+	Temp::Setup();
     CANLib::Setup();
 
 	uint32_t current_time = HAL_GetTick();
@@ -194,6 +195,7 @@ int main(void)
 		SPI::Loop(current_time);
 		BMSLogic::Loop(current_time);
 		OneWire::Loop(current_time);
+		Temp::Loop(current_time);
 		CANLib::Loop(current_time);
 	}
 }

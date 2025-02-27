@@ -172,53 +172,5 @@ namespace CANLib
 		//obj_max_temperature.SetValue(0, max_temp, timer_type, event_type);
 	}
 
-	void UpdateCANObjects_ExternalTemperature(int8_t *temperature_data, uint8_t data_count)
-	{
-		if (temperature_data == nullptr)
-			return;
-
-		// 0x0046	MaxTemperature
-		// we will set it at the end of the update
-		// obj_max_temperature.SetValue(0, (int8_t)0, CAN_TIMER_TYPE_NORMAL);
-
-		uint8_t data_index = 0;
-
-		// 0x0048	Temperature1
-		// request
-		// int8_t	°C	1 + 7	{ type[0] t1[1] t2[2] t3[3] t4[4] t5[5] t6[6] t7[7] }
-		// Температура: MOS, Balancer, Temp1, Temp2, Temp3, Temp4, Temp5.
-
-		if (data_index >= data_count)
-			return;
-		obj_temperature_1.SetValue(7, temperature_data[data_index++]);
-
-		// 0x0049	Temperature2
-		// request
-		// int8_t	°C	1 + 7	{ type[0] t1[1] t2[2] t3[3] t4[4] t5[5] t6[6] t7[7] }
-		// Температура: Temp6, Temp7, Temp8, Temp9, Temp10, Temp11, Temp12.
-		for (uint8_t i = 0; i < 7; i++)
-		{
-			if (data_index >= data_count)
-				return;
-			obj_temperature_2.SetValue(i, temperature_data[data_index++]);
-		}
-
-		// 0x004A	Temperature3
-		// request
-		// int8_t	°C	1 + 7	{ type[0] t1[1] t2[2] t3[3] t4[4] t5[5] t6[6] t7[7] }
-		// Температура: Temp13, Temp14, Temp15, Temp16, Temp17, Temp18, Temp19.
-		for (uint8_t i = 0; i < 7; i++)
-		{
-			if (data_index >= data_count)
-				return;
-			//obj_temperature_3.SetValue(i, temperature_data[data_index++]);
-		}
-
-		// 0x0046	MaxTemperature
-		// request | timer:5000 | event
-		// int8_t	°C	1 + 1	{ type[0] data[1] }
-		// Ограничения: <60:WARN, <80: CRIT
-		// Максимально зафиксированная температура.
-		UpdateMaxTemperature();
-	}
+	
 }
