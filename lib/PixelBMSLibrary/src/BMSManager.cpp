@@ -14,16 +14,18 @@ void BMSManager::SetModel(uint8_t idx, BMSDeviceInterface &device)
 
 void BMSManager::Tick(uint32_t &time)
 {
+	BMSDeviceInterface::error_code_t error_code;
+	BMSDeviceInterface *device = nullptr;
 	for(uint8_t idx = 0; idx < _max_dev; ++idx)
 	{
-		if(_error[idx].is_error == true)
-		{
-			_error[idx].is_error = false;
-			
-			_callback_error(idx, _error[idx].code);
-		}
+		device = _device[idx];
+		if(device == nullptr) continue;
 		
-		_device[idx]->Tick(time);
+		device->Tick(time);
+		if(device->GetNewError(error_code) == true)
+		{
+			_callback_error(idx, error_code);
+		}
 	}
 	
 	return;
@@ -33,12 +35,8 @@ void BMSManager::DataRx(uint8_t idx, const uint8_t *raw, const uint8_t length)
 {
 	if(idx >= _max_dev) return;
 	if(_device[idx] == nullptr) return;
-
-	_error[idx].code = _device[idx]->DataRx(raw, length);
-	if(_error[idx].code != 0)
-	{
-		_error[idx].is_error = true;
-	}
+	
+	_device[idx]->DataRx(raw, length);
 	
 	return;
 }
@@ -46,6 +44,15 @@ void BMSManager::DataRx(uint8_t idx, const uint8_t *raw, const uint8_t length)
 void BMSManager::DataTx(uint8_t idx, const uint8_t *raw, const uint8_t length)
 {
 	_callback_tx(idx, raw, length);
+	
+	return;
+}
+
+void BMSManager::ResetCommonData(uint8_t idx)
+{
+	if(idx >= _max_dev) return;
+	
+	memset(&common_obj[idx], 0x00, sizeof(common_obj[idx]));
 	
 	return;
 }

@@ -17,9 +17,9 @@ class BMSOther : public BMSDeviceInterface
 
 		}
 		
-		virtual int8_t DataRx(const uint8_t *raw, const uint8_t length) override
+		virtual void DataRx(const uint8_t *raw, const uint8_t length) override
 		{
-			return 0;
+			return;
 		}
 
 	private:

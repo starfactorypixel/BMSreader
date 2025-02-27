@@ -16,8 +16,7 @@ class BMSManager
 		BMSManager(callback_tx_t tx, callback_error_t error) : _callback_tx(tx), _callback_error(error)
 		{
 			memset(_device, 0x00, sizeof(_device));
-			memset(_error, 0x00, sizeof(_error));
-			memset(data, 0x00, sizeof(data));
+			memset(common_obj, 0x00, sizeof(common_obj));
 			
 			return;
 		}
@@ -26,21 +25,19 @@ class BMSManager
 		void Tick(uint32_t &time);
 		void DataRx(uint8_t idx, const uint8_t *raw, const uint8_t length);
 		void DataTx(uint8_t idx, const uint8_t *raw, const uint8_t length);
+		void ResetCommonData(uint8_t idx);
 
-		bms_common_data_t data[_max_dev] = {};
+		struct common_obj_t
+		{
+			BMSManagerData::common_data_t data;
+			bool ready;
+		} common_obj[_max_dev];
 		
 	private:
-		
-		struct error_t
-		{
-			bool is_error;
-			int8_t code;
-		};
 		
 		callback_tx_t _callback_tx;
 		callback_error_t _callback_error;
 		
 		BMSDeviceInterface *_device[_max_dev];
-		error_t _error[_max_dev];
 		
 };

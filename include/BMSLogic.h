@@ -50,6 +50,8 @@ namespace BMSLogic
 	void BMS_ERROR(uint8_t idx, int8_t code)
 	{
 		DEBUG_LOG_TOPIC("BMS-ERR", "idx: %d, code: %d\n", idx, code);
+
+		return;
 	}
 
 

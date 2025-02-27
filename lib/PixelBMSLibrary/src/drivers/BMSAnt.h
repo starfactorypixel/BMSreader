@@ -6,11 +6,12 @@
 
 class BMSAnt : public BMSDeviceInterface
 {
+	static constexpr uint8_t REQUEST_TRY_MAX = 3;
 	using callback_ready_t = void (*)(const BMSANT::packet_raw_reverse_t *data);
 	
 	public:
 		
-		BMSAnt() : BMSDeviceInterface(), _callback_ready(nullptr), _busy(false), _ready(false), _last_request_time(0)
+		BMSAnt() : BMSDeviceInterface(), _callback_ready(nullptr), _busy(false), _ready(false), _request_try_count(0), _last_request_time(0)
 		{
 			memset(_data, 0x00, sizeof(_data));
 			
@@ -40,17 +41,27 @@ class BMSAnt : public BMSDeviceInterface
 
 				_PostProcessing();
 
-				// Напихиваем полезные данные в общий объект
-				_manager->data[_idx].voltage = data->total_voltage;
-				_manager->data[_idx].current = data->total_current;
-				_manager->data[_idx].power = data->total_power;
-				
-				if(_callback_ready != nullptr)
 				{
-					_callback_ready(data);
+					// Напихиваем полезные данные в общий объект
+					BMSManagerData::common_data_t *common_data = &_manager->common_obj[_idx].data;
+					
+					common_data->voltage = data->total_voltage;
+					common_data->current = data->total_current;
+					common_data->power = data->total_power;
+					
+					if(data->status_charge_fet > 1 || data->status_dcharge_fet > 1)
+					{
+						_error.code = ERROR_CTRL;
+					}
+					
+					if(_callback_ready != nullptr)
+					{
+						_callback_ready(data);
+					}
 				}
-				
+
 				_busy = false;
+				_request_try_count = 0;
 			}
 			
 			if(time - _last_request_time > BMSANT::PacketRequestInerval)
@@ -58,25 +69,35 @@ class BMSAnt : public BMSDeviceInterface
 				_last_request_time = time;
 
 				_manager->DataTx(_idx, BMSANT::PacketRequest, sizeof(BMSANT::PacketRequest));
+
+				if(_request_try_count <= REQUEST_TRY_MAX) _request_try_count++;
+			}
+
+			if(_request_try_count > REQUEST_TRY_MAX)
+			{
+				_manager->ResetCommonData(_idx);
+				_error.code = ERROR_LOST;
 			}
 			
 			return;
 		}
 		
 		// Приём пакета, в прерывании. Минимум самый важный действий.
-		virtual int8_t DataRx(const uint8_t *raw, const uint8_t length) override
+		virtual void DataRx(const uint8_t *raw, const uint8_t length) override
 		{
-			if(_busy == true) return -1;
-			if(length != BMSANT::PacketSize) return -2;
-			if(memcmp(BMSANT::PacketHeader, raw, sizeof(BMSANT::PacketHeader)) != 0) return -3;
-			if(_CheckCRCSum(raw) == false) return -4;
+			_error.code = ERROR_NONE;
+			
+			if(_busy == true){ _error.code = ERROR_BUSY; return; }
+			if(length != BMSANT::PacketSize){ _error.code = ERROR_LENGTH; return; }
+			if(memcmp(BMSANT::PacketHeader, raw, sizeof(BMSANT::PacketHeader)) != 0){ _error.code = ERROR_HEADER; return; }
+			if(_CheckCRCSum(raw) == false){ _error.code = ERROR_CRC; return; }
 			
 			memcpy(_data, raw, sizeof(_data));
 			
 			_ready = true;
 			_busy = true;
 			
-			return 0;
+			return;
 		}
 		
 		// Объект готовых данных.
@@ -108,6 +129,7 @@ class BMSAnt : public BMSDeviceInterface
 		bool _busy;								// Флаг того, что разбор данных не окончен и новые копировать нельзя
 		bool _ready;							// Флаг того, что массив данные приняты и готовы к анализу
 		uint8_t _data[BMSANT::PacketSize];		// Холодный массив данных (Работа в программе)
+		uint8_t _request_try_count;				// Кол-во попыток запроса данных
 
 		uint32_t _last_request_time;
 		
